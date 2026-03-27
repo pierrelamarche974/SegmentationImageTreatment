@@ -91,9 +91,9 @@ if uploaded:
 
     # Affichage côte à côte
     c1, c2, c3 = st.columns(3)
-    c1.image(img_disp, caption='Image',        use_container_width=True)
-    c2.image(mask_rgb, caption='Masque prédit', use_container_width=True)
-    c3.image(overlay,  caption='Overlay',       use_container_width=True)
+    c1.image(img_disp, caption='Image',        use_column_width=True)
+    c2.image(mask_rgb, caption='Masque prédit', use_column_width=True)
+    c3.image(overlay,  caption='Overlay',       use_column_width=True)
 
 
 else:
