@@ -1,0 +1,4 @@
+streamlit==1.33.0
+numpy>=1.21,<2.0
+pillow>=9.0
+tflite-runtime==2.13.0
