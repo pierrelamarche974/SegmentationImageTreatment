@@ -70,8 +70,8 @@ def blend(img_rgb: np.ndarray, mask: np.ndarray, alpha=0.45) -> np.ndarray:
     return ((1 - alpha) * base + alpha * PALETTE[mask]).clip(0, 255).astype(np.uint8)
 
 # ── UI ────────────────────────────────────────────────────────────────────────
-st.set_page_config(page_title='FPN Segmentation', layout='wide')
-st.title('Segmentation sémantique — FPN VGG16')
+st.set_page_config(page_title='Segmentation', layout='wide')
+st.title('Segmentation - Traitement d\'image')
 st.caption('Cityscapes · 8 classes · 256×512')
 
 interpreter, input_details, output_details = load_interpreter()
