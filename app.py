@@ -8,6 +8,7 @@ from pathlib import Path
 
 import numpy as np
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.responses import HTMLResponse
 from PIL import Image
 
 try:
@@ -35,6 +36,105 @@ MASK_ROOT = DATA_DIR / "gtFine"
 DEFAULT_SPLIT = os.environ.get("DATA_SPLIT", "val")
 
 app = FastAPI(title="Segmentation API", version="1.0")
+
+INDEX_HTML = """<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Segmentation Demo</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 32px; background: #f6f7fb; color: #111; }
+      .drop { border: 2px dashed #667; background: #fff; padding: 28px; text-align: center; cursor: pointer; }
+      .drop.hover { border-color: #222; background: #f0f2f7; }
+      .status { margin: 12px 0; font-size: 14px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 16px; }
+      .panel { background: #fff; padding: 12px; border: 1px solid #e3e6ee; border-radius: 8px; }
+      .panel h3 { margin: 0 0 8px 0; font-size: 14px; font-weight: 600; }
+      img { width: 100%; height: auto; border-radius: 6px; }
+      code { background: #eef1f7; padding: 2px 6px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <h1>Segmentation Demo</h1>
+    <p>Drop an image or click to upload. This uses <code>/predict</code> and shows the outputs.</p>
+    <div id="drop-zone" class="drop">Drop image here</div>
+    <input id="file-input" type="file" accept="image/*" style="display:none" />
+    <div id="status" class="status"></div>
+    <div class="grid">
+      <div class="panel">
+        <h3>Input</h3>
+        <img id="img-input" alt="Input preview" />
+      </div>
+      <div class="panel">
+        <h3>Mask</h3>
+        <img id="img-mask" alt="Predicted mask" />
+      </div>
+      <div class="panel">
+        <h3>Overlay</h3>
+        <img id="img-overlay" alt="Overlay" />
+      </div>
+    </div>
+    <script>
+      const drop = document.getElementById("drop-zone");
+      const input = document.getElementById("file-input");
+      const statusEl = document.getElementById("status");
+      const imgInput = document.getElementById("img-input");
+      const imgMask = document.getElementById("img-mask");
+      const imgOverlay = document.getElementById("img-overlay");
+
+      function setStatus(text, isError) {
+        statusEl.textContent = text || "";
+        statusEl.style.color = isError ? "#b00020" : "#333";
+      }
+
+      function handleFile(file) {
+        if (!file) return;
+        if (!file.type.startsWith("image/")) {
+          setStatus("Please select an image file.", true);
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          imgInput.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+
+        const form = new FormData();
+        form.append("file", file, file.name || "image.png");
+        setStatus("Running inference...", false);
+
+        fetch("/predict", { method: "POST", body: form })
+          .then((res) => {
+            if (!res.ok) throw new Error("HTTP " + res.status);
+            return res.json();
+          })
+          .then((data) => {
+            imgMask.src = "data:image/png;base64," + data.mask;
+            imgOverlay.src = "data:image/png;base64," + data.overlay;
+            setStatus("Done.", false);
+          })
+          .catch((err) => {
+            setStatus("Error: " + err.message, true);
+          });
+      }
+
+      drop.addEventListener("click", () => input.click());
+      drop.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        drop.classList.add("hover");
+      });
+      drop.addEventListener("dragleave", () => drop.classList.remove("hover"));
+      drop.addEventListener("drop", (e) => {
+        e.preventDefault();
+        drop.classList.remove("hover");
+        handleFile(e.dataTransfer.files[0]);
+      });
+      input.addEventListener("change", () => handleFile(input.files[0]));
+    </script>
+  </body>
+</html>
+"""
 
 
 @lru_cache(maxsize=1)
@@ -127,6 +227,11 @@ def _encode_png(arr: np.ndarray) -> str:
     buffer = io.BytesIO()
     image.save(buffer, format="PNG")
     return base64.b64encode(buffer.getvalue()).decode("ascii")
+
+
+@app.get("/", response_class=HTMLResponse)
+def index() -> HTMLResponse:
+    return HTMLResponse(INDEX_HTML)
 
 
 @app.get("/health")
